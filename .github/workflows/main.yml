@@ -1,0 +1,156 @@
+name: "Build fast api and push to ecr"
+
+on:
+  workflow_dispatch:
+    branches:
+      - main
+  # push:
+  #   branches:
+  #     - main
+
+env: 
+  REGION: us-east-1
+  ECR_DOCKER_IMAGE: fast-api-repo
+  ECS_SERVICE: fastapi-svc
+  ECS_CLUSTER: fast-api-cluster
+  ECS_TASK_DEFINITION: fastapi-svc
+  AWS_REGION: us-east-1
+
+jobs:
+
+  deploy-terraform:
+    runs-on: ubuntu-latest
+
+    defaults:
+        run:
+          shell: bash
+          working-directory: ./terraform
+        
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS Credentials 
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-region: eu-west-1
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+        
+    - name: Install Terraform 
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Initialize Terraform
+      run: terraform init
+
+    - name: Validate Terraform
+      run: terraform validate
+
+    - name: terraform plan
+      run: terraform plan
+
+    - name: format terraform
+      run: terraform fmt
+    
+    - name: apply terraform
+      run: terraform apply --auto-approve
+
+                
+
+  sonarqube:
+    needs: deploy-terraform
+    name: SonarQube Integration
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        # Disabling shallow clone is recommended for improving relevancy of reporting
+        fetch-depth: 0
+
+    - uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin' # See 'Supported distributions' for available options
+        java-version: '21'
+
+    - uses: actions/setup-python@v5 
+      with:
+        python-version: 'pypy3.9' 
+
+    - name: SonarCloud Scan
+      uses: sonarsource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  build-image:
+    needs: sonarqube
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./src
+      
+
+    steps:
+      
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
+            src
+
+      - uses: benjlevesque/short-sha@v3.0
+        name: Get repo short sha
+        id: short-sha
+        with:
+          length: 6
+
+
+      - name: Setup AWS ECR Details
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{secrets.REGION}}
+
+
+      - name: Login to Amazon ECR
+        id: login-pf-aws-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        
+
+      - name: Build and push the tagged docker image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-pf-aws-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{secrets.ECR_DOCKER_IMAGE}}
+          IMAGE_TAG: ${{ steps.short-sha.outputs.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_DOCKER_IMAGE:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_DOCKER_IMAGE:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_DOCKER_IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Checkout AWS ECS Deploy GH Action
+        uses: actions/checkout@v2
+        with:
+          repository: robertomoutinho/gh-action-ecs-deploy
+          token: ${{ github.token }}
+          path: ./.github/actions/ecs-deploy
+        
+      - name: Deploy App to ECS Service
+        uses: ./.github/actions/ecs-deploy
+        with:
+          app_repo_url: ${{ steps.build-image.outputs.image }}
+          app_version: ${{ steps.short-sha.outputs.sha }}
+          ecs_cluster: ${{ env.ECS_CLUSTER }}
+          ecs_service: ${{ env.ECS_SERVICE }}
+          ecs_container_name: 'fastapi'
+          aws_region: ${{ env.AWS_REGION }}
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          timeout: 900
+
+        
