@@ -1,40 +1,53 @@
-# FastAPI Endpoint
+# WAARON LLC Virtual Waiting Room Demo
 
-This repository contains a sample fast api written in python. The api accepts a POST request of an alphabet and then returns a name of a poet whoe first name matches the letter that is sent in the request. Payload data should look like the below
+This project is a demonstration of the WAARON LLC Virtual Waiting Room solution. It showcases how to integrate the solution into a functional React.js frontend and FastAPI backend application. The sample application is deployed using Amazon ECS and Terraform for Infrastructure as Code (IaC).
 
+## Project Structure
+
+- **src/waiting-room-demo/**: Contains the React.js frontend application.
+- **src/waaron-vwr-api/**: Contains the FastAPI backend application.
+- **terraform/**: Contains the Terraform code for deploying the application.
+
+## Prerequisites
+
+- Docker installed and running on your host machine.
+- AWS CLI configured with appropriate permissions.
+- Terraform installed.
+
+## Getting Started
+
+
+### Applying Terraform Code
+
+Navigate to the `terraform/` directory and run the following commands to deploy the application using Terraform ensure that you have docker running before executing this:
+
+```sh
+cd terraform
+terraform init
+terraform apply
 ```
-{
-    "letter" : "p" # can be any other letter
-}
+
+Follow the prompts to confirm the deployment.
+
+## Accessing the Application
+
+Once the deployment is complete, you can access the application using the URL provided by the Terraform output.
+
+## Cleaning Up
+
+To destroy the deployed resources, run the following command in the `terraform/` directory:
+
+```sh
+terraform destroy
 ```
 
-To use this repo on the cloud ensure you set you github actions secrets with AWS credentials, AWS Account Number, Region, sonar host url, sonar token
+## Contributing
 
-```
-ACCOUNT_NUMBER
-AWS_ACCESS_KEY_ID
-AWS_SECRET_ACCESS_KEY
-REGION
-SONAR_HOST_URL
-SONAR_TOKEN
-```
-![Secet Variables](./img/image.png)
+Contributions are welcome! Please open an issue or submit a pull request.
 
-## Setting Up Locally
+## License
 
-To use the API locally, navigate to the `/src` directory. Using docker compose, you can easily spin up  container running the api
+This project is licensed under the MIT License.
+### Note
 
-```
-docker compose up -d
-```
-
-It will create a container running on port 8000 which you can make local requests to using tools like postman.
-
-
-## Setting Up on Cloud
-
-Having those secret variables set in the github actions secrets, Proceed to deploy the the infra using the `deploy terraform` job in github actions. you can trigger it using a workflow diapatch that is provided in the GHA console.
-
-The terraform script uses AWS s3 bucket to store the state backend. This is 
-
-
+There is no need to manually build the Docker images using `docker-compose build`. The Terraform configuration will handle building the Docker images when you execute `terraform apply`. Just ensure that Docker is installed and running on your host machine.
