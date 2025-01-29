@@ -19,7 +19,7 @@ services:
     build: .
     restart: always
     ports:
-      - "8084:8000"
+      - "8000:8000"
     depends_on:
       - mysql
     environment:
@@ -34,12 +34,15 @@ services:
     networks:
       - docker-net
 
-  # frontend:
-  #   image: sheriffexcel/waaron-vwr-ui
-  #   ports:
-  #     - "8080:80"
-  #   networks:
-  #     - docker-net
+  frontend:
+    image: sheriffexcel/waaron-vwr-ui
+    build: ../waaron-vwr-ui
+    ports:
+      - "3000:3000"
+    networks:
+      - docker-net
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
 
 volumes:
   mysql_data:
