@@ -29,8 +29,9 @@ module "ecs_cluster" {
 
 module "ecs_service" {
   source = "./modules/ecs_service/modules/service"
-  name        = "fastapi-svc"
+  name        = "frontend-svc"
   cluster_arn = module.ecs_cluster.arn
+  depends_on = [ docker_registry_image.waiting_room_frontend, aws_cloudwatch_log_group.fastapi-container ]
   cpu    = 512
   memory = 1024
   container_definitions = {
@@ -57,9 +58,8 @@ module "ecs_service" {
       log_configuration = {
         logDriver = "awslogs"
         options = {
-          awslogs-group         = "fastapi-container",
-          awslogs-region        = "us-east-1",
-          awslogs-create-group  = "true",
+          awslogs-group         = "${aws_cloudwatch_log_group.fastapi-container.name}",
+          awslogs-region        = "${var.aws_region}",
           awslogs-stream-prefix = "fastapi"
         }
       }
@@ -107,10 +107,11 @@ module "ecs_service" {
 # API ECS Service
 module "ecs_service_api" {
   source = "./modules/ecs_service/modules/service"
-  name        = "api-svc"
+  name        = "backend-svc"
   cluster_arn = module.ecs_cluster.arn
   cpu    = var.service_cpu
   memory = var.service_memory
+  depends_on = [ docker_registry_image.waiting_room_backend, aws_cloudwatch_log_group.api-container ]
 
   container_definitions = {
     api = {
@@ -166,9 +167,8 @@ module "ecs_service_api" {
       log_configuration = {
         logDriver = "awslogs"
         options = {
-          awslogs-group         = "api-container",
+          awslogs-group         = "${aws_cloudwatch_log_group.api-container.name}",
           awslogs-region        = var.aws_region,
-          awslogs-create-group  = "true",
           awslogs-stream-prefix = "api"
         }
       }
