@@ -27,6 +27,22 @@ terraform init
 terraform apply
 ```
 
+## To run as Docker Compose
+
+To run it as a docker compose app, navigate to `src/waaron-vwr-api` and edit the environment variables to match the waiting room cloudformation outputs
+
+```
+      WAITING_ROOM_API_URL: "https://d1gv7fyivejatk.cloudfront.net"
+      WAITING_ROOM_EVENT_ID: "Sample"
+      ISSUER: "https://xg9l9of39f.execute-api.eu-west-2.amazonaws.com/api"
+```
+
+To spin it up execute the command
+
+```
+docker compose up -d
+```
+
 Follow the prompts to confirm the deployment.
 
 ## Accessing the Application
